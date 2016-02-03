@@ -103,6 +103,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"sort"
 	"strings"
 )
@@ -347,6 +348,9 @@ var Usage = func() {
 	PrintDefaults()
 }
 
+// If defined, the flag --version will print version information
+var Version string
+
 // NFlag returns the number of flags that have been set.
 func (f *FlagSet) NFlag() int { return len(f.actual) }
 
@@ -460,6 +464,16 @@ func (f *FlagSet) usage() {
 	}
 }
 
+func (f *FlagSet) version() {
+	if Version != "" {
+		fmt.Fprintf(os.Stderr, "%s v%s (%s/%s/%s)\n", os.Args[0], Version, runtime.GOOS, runtime.GOARCH, runtime.Version())
+	}
+}
+
+func PrintVersion() {
+	CommandLine.version()
+}
+
 func (f *FlagSet) setFlag(flag *Flag, value string, origArg string) error {
 	if err := flag.Value.Set(value); err != nil {
 		return f.failf("invalid argument %q for %s: %v", value, origArg, err)
@@ -504,6 +518,9 @@ func (f *FlagSet) parseArgs(args []string) error {
 				if name == "help" { // special case for nice help message.
 					f.usage()
 					return ErrHelp
+				} else if name == "version" { // special case for nice version string
+					f.version()
+					return ErrHelp
 				}
 				return f.failf("unknown flag: --%s", name)
 			}
@@ -525,6 +542,9 @@ func (f *FlagSet) parseArgs(args []string) error {
 				if !alreadythere {
 					if c == 'h' { // special case for nice help message.
 						f.usage()
+						return ErrHelp
+					} else if c == 'V' { // special case for nice version string
+						f.version()
 						return ErrHelp
 					}
 					return f.failf("unknown shorthand flag: %q in -%s", c, shorthands)
